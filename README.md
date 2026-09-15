@@ -21,17 +21,17 @@ RentBase is a web platform for managing residential buildings, their apartments,
 
 Building → Apartment → Booking
 
-- **Building** — a residential building (address, number of floors, etc.)
-- **Apartment** — belongs to a Building (floor, room count, area, rent price)
-- **Booking** — belongs to an Apartment (tenant, dates, status)
+- **Building** - a residential building (address, number of floors, etc.)
+- **Apartment** - belongs to a Building (floor, room count, area, rent price)
+- **Booking** - belongs to an Apartment (tenant, dates, status)
 
 ### Deployment Diagram
 
 Three-tier architecture:
 
-- **Client** — frontend SPA running in the browser
-- **API** — REST backend, containerized, deployed on a cloud VM/PaaS
-- **Database** — managed cloud database instance
+- **Client** - frontend SPA running in the browser
+- **API** - REST backend, containerized, deployed on a cloud VM/PaaS
+- **Database** - managed cloud database instance
 
 Communication is over HTTPS; JWT tokens are sent in the Authorization header. A full diagram will be added as the implementation progresses.
 
