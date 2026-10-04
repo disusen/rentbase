@@ -1,0 +1,490 @@
+openapi: 3.0.3
+info:
+  title: RentBase API
+  version: 1.0.0
+  description: |
+    REST API for residential buildings, apartments and reservations.
+    Swagger UI at /swagger is generated from the same controllers and stays in sync when the API is running.
+    This file is the committed specification for every method.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Auth
+  - name: Buildings
+  - name: Apartments
+  - name: Reservations
+  - name: Users
+paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a member
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Created. Account waits for administrator approval.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and receive a JWT
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Token issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Wrong email or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '403':
+          description: Registration is not approved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/buildings:
+    get:
+      tags: [Buildings]
+      summary: List buildings
+      operationId: listBuildings
+      parameters:
+        - in: query
+          name: city
+          schema: { type: string }
+      responses:
+        '200':
+          description: Building list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BuildingResponse'
+    post:
+      tags: [Buildings]
+      summary: Create a building
+      operationId: createBuilding
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/buildings/{id}:
+    put:
+      tags: [Buildings]
+      summary: Update a building
+      operationId: updateBuilding
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BuildingRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuildingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Buildings]
+      summary: Delete a building
+      operationId: deleteBuilding
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted, no body.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/apartments:
+    get:
+      tags: [Apartments]
+      summary: List apartments, optionally by building or availability
+      operationId: listApartments
+      parameters:
+        - in: query
+          name: buildingId
+          schema: { type: integer }
+        - in: query
+          name: available
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: Apartment list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApartmentResponse'
+    post:
+      tags: [Apartments]
+      summary: Create an apartment
+      operationId: createApartment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApartmentRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/apartments/{id}:
+    put:
+      tags: [Apartments]
+      summary: Update an apartment
+      operationId: updateApartment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApartmentRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApartmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Apartments]
+      summary: Delete an apartment
+      operationId: deleteApartment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted, no body.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/reservations:
+    get:
+      tags: [Reservations]
+      summary: List own reservations, or all reservations for an administrator
+      operationId: listReservations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: userId
+          schema: { type: integer }
+          description: Administrator only.
+      responses:
+        '200':
+          description: Reservation list.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationResponse'
+    post:
+      tags: [Reservations]
+      summary: Create a reservation
+      operationId: createReservation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+      responses:
+        '201':
+          description: Created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+  /api/reservations/{id}:
+    put:
+      tags: [Reservations]
+      summary: Update a reservation
+      operationId: updateReservation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+      responses:
+        '200':
+          description: Updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    delete:
+      tags: [Reservations]
+      summary: Cancel a reservation
+      operationId: deleteReservation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Cancelled, no body.
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/users/{id}/approval:
+    patch:
+      tags: [Users]
+      summary: Approve or reject a registration
+      operationId: setApproval
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '200':
+          description: Approval updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/users/{id}:
+    delete:
+      tags: [Users]
+      summary: Delete a member
+      operationId: deleteUser
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Deleted, no body.
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    id:
+      in: path
+      name: id
+      required: true
+      schema: { type: integer }
+  responses:
+    BadRequest:
+      description: Malformed or incomplete payload.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unauthorized:
+      description: Missing or invalid token.
+    Forbidden:
+      description: Authenticated, but not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    NotFound:
+      description: Resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Unprocessable:
+      description: Payload is well formed, but the business rule rejects it.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+  schemas:
+    ApiError:
+      type: object
+      properties:
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    RegisterRequest:
+      type: object
+      required: [fullName, email, password]
+      properties:
+        fullName: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    ApprovalRequest:
+      type: object
+      required: [isApproved]
+      properties:
+        isApproved: { type: boolean }
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user:
+          $ref: '#/components/schemas/UserResponse'
+    UserResponse:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        email: { type: string }
+        role: { type: string }
+        isApproved: { type: boolean }
+    BuildingRequest:
+      type: object
+      required: [name, address, city, yearBuilt]
+      properties:
+        name: { type: string }
+        address: { type: string }
+        city: { type: string }
+        description: { type: string }
+        yearBuilt: { type: integer }
+    BuildingResponse:
+      allOf:
+        - $ref: '#/components/schemas/BuildingRequest'
+        - type: object
+          properties:
+            id: { type: integer }
+            apartmentCount: { type: integer }
+    ApartmentRequest:
+      type: object
+      required: [buildingId, number, floor, areaSqm, rooms, monthlyRent]
+      properties:
+        buildingId: { type: integer }
+        number: { type: string }
+        floor: { type: integer }
+        areaSqm: { type: number }
+        rooms: { type: integer }
+        monthlyRent: { type: number }
+        isAvailable: { type: boolean }
+    ApartmentResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApartmentRequest'
+        - type: object
+          properties:
+            id: { type: integer }
+            buildingName: { type: string }
+            city: { type: string }
+    ReservationRequest:
+      type: object
+      required: [apartmentId, startDate, endDate]
+      properties:
+        apartmentId: { type: integer }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        notes: { type: string }
+    ReservationResponse:
+      allOf:
+        - $ref: '#/components/schemas/ReservationRequest'
+        - type: object
+          properties:
+            id: { type: integer }
+            apartmentNumber: { type: string }
+            buildingName: { type: string }
+            userId: { type: integer }
+            userName: { type: string }
+            createdAt: { type: string, format: date-time }

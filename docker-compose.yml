@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: rentbase
+      POSTGRES_USER: rentbase
+      POSTGRES_PASSWORD: rentbase
+    ports:
+      - "5432:5432"
+    volumes:
+      - rentbase-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rentbase -d rentbase"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Default: Host=db;Port=5432;Database=rentbase;Username=rentbase;Password=rentbase
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  rentbase-data:

@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "RentBase API",
+    "description": "Lab 1 demo. Run the Lab demo folder, then Edge cases.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "adminToken", "value": "" },
+    { "key": "memberToken", "value": "" },
+    { "key": "buildingId", "value": "" },
+    { "key": "apartmentId", "value": "" },
+    { "key": "reservationId", "value": "" },
+    { "key": "userId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Lab demo",
+      "item": [
+        {
+          "name": "01 Login admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@rentbase.lt\",\n  \"password\": \"Admin123!\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "const body = pm.response.json();", "pm.collectionVariables.set('adminToken', body.token);"] } }]
+        },
+        {
+          "name": "02 List buildings",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/buildings" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('json array', () => pm.expect(pm.response.json().length).to.be.above(0));"] } }]
+        },
+        {
+          "name": "03 Create building",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/buildings",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo namas\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Sukurta gynimo demonstracijai.\",\n  \"yearBuilt\": 2019\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('buildingId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "04 Update building",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/buildings/{{buildingId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo namas (atnaujintas)\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Adresas patikslintas gynimo metu.\",\n  \"yearBuilt\": 2019\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "05 List available apartments",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/apartments?available=true" },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "06 Create apartment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/apartments",
+            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": {{buildingId}},\n  \"number\": \"D1\",\n  \"floor\": 2,\n  \"areaSqm\": 48.5,\n  \"rooms\": 2,\n  \"monthlyRent\": 590,\n  \"isAvailable\": true\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('apartmentId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "07 Update apartment",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/apartments/{{apartmentId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": {{buildingId}},\n  \"number\": \"D1\",\n  \"floor\": 2,\n  \"areaSqm\": 49.0,\n  \"rooms\": 2,\n  \"monthlyRent\": 610,\n  \"isAvailable\": true\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "08 Register member",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": { "mode": "raw", "raw": "{\n  \"fullName\": \"Demo Narys\",\n  \"email\": \"demo.narys@rentbase.lt\",\n  \"password\": \"Member123!\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('userId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "09 Approve registration",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/users/{{userId}}/approval",
+            "body": { "mode": "raw", "raw": "{\n  \"isApproved\": true\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.test('approved', () => pm.expect(pm.response.json().isApproved).to.eql(true));"] } }]
+        },
+        {
+          "name": "10 Login member",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"demo.narys@rentbase.lt\",\n  \"password\": \"Member123!\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));", "pm.collectionVariables.set('memberToken', pm.response.json().token);"] } }]
+        },
+        {
+          "name": "11 Create reservation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": "{{baseUrl}}/api/reservations",
+            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2026-12-01\",\n  \"endDate\": \"2027-02-28\",\n  \"notes\": \"Gynimo rezervacija.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('reservationId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "12 List own reservations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": "{{baseUrl}}/api/reservations"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "13 Update reservation",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": "{{baseUrl}}/api/reservations/{{reservationId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2026-12-01\",\n  \"endDate\": \"2027-03-31\",\n  \"notes\": \"Pratęsta iki kovo.\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "14 Cancel reservation",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": "{{baseUrl}}/api/reservations/{{reservationId}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }]
+        },
+        {
+          "name": "15 Delete demo apartment and building",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/apartments/{{apartmentId}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204 apartment', () => pm.response.to.have.status(204));"] } }]
+        },
+        {
+          "name": "16 Delete demo user",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/users/{{userId}}"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204 user', () => pm.response.to.have.status(204));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Edge cases",
+      "item": [
+        {
+          "name": "404 missing building",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/buildings/99999"
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+        },
+        {
+          "name": "400 bad building payload",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/buildings",
+            "body": { "mode": "raw", "raw": "{}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }]
+        },
+        {
+          "name": "422 end date before start",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "url": "{{baseUrl}}/api/reservations",
+            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": 2,\n  \"startDate\": \"2027-05-10\",\n  \"endDate\": \"2027-05-01\",\n  \"notes\": \"Blogos datos\"\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('422', () => pm.response.to.have.status(422));"] } }]
+        },
+        {
+          "name": "201 still works for a fresh building",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/buildings",
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Statuso namas\",\n  \"address\": \"K. Donelaičio g. 1\",\n  \"city\": \"Kaunas\",\n  \"description\": \"201 demonstracija.\",\n  \"yearBuilt\": 2020\n}" }
+          },
+          "event": [{ "listen": "test", "script": { "exec": ["pm.test('201', () => pm.response.to.have.status(201));", "pm.collectionVariables.set('buildingId', pm.response.json().id);"] } }]
+        }
+      ]
+    }
+  ]
+}
