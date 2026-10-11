@@ -18,12 +18,18 @@ public class BuildingsController : ApiControllerBase
         _db = db;
     }
 
-    /// <summary>List buildings. Guests can call this without a token.</summary>
+    /// <summary>List buildings with optional city filter and pagination. Guests can call this without a token.</summary>
     [HttpGet]
     [AllowAnonymous]
-    [ProducesResponseType(typeof(List<BuildingResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<BuildingResponse>>> List([FromQuery] string? city)
+    [ProducesResponseType(typeof(PagedResponse<BuildingResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<BuildingResponse>>> List(
+        [FromQuery] string? city,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var query = _db.Buildings.AsNoTracking().Include(b => b.Apartments).AsQueryable();
         if (!string.IsNullOrWhiteSpace(city))
         {
@@ -31,8 +37,49 @@ public class BuildingsController : ApiControllerBase
             query = query.Where(b => b.City.ToLower() == normalized);
         }
 
-        var buildings = await query.OrderBy(b => b.City).ThenBy(b => b.Name).ToListAsync();
-        return Ok(buildings.Select(ToResponse).ToList());
+        var total = await query.CountAsync();
+        var buildings = await query
+            .OrderBy(b => b.City)
+            .ThenBy(b => b.Name)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = buildings.Select(ToResponse).ToList();
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+
+        var links = new ResourceLinks
+        {
+            Self = $"/api/buildings?page={page}&pageSize={pageSize}" + (string.IsNullOrWhiteSpace(city) ? "" : $"&city={Uri.EscapeDataString(city!)}"),
+            Next = page < totalPages ? $"/api/buildings?page={page + 1}&pageSize={pageSize}" + (string.IsNullOrWhiteSpace(city) ? "" : $"&city={Uri.EscapeDataString(city!)}") : null,
+            Prev = page > 1 ? $"/api/buildings?page={page - 1}&pageSize={pageSize}" + (string.IsNullOrWhiteSpace(city) ? "" : $"&city={Uri.EscapeDataString(city!)}") : null
+        };
+
+        return Ok(new PagedResponse<BuildingResponse>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            TotalPages = totalPages,
+            Links = links
+        });
+    }
+
+    /// <summary>Get a single building by id.</summary>
+    [HttpGet("{id:int}")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(BuildingResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<BuildingResponse>> Get(int id)
+    {
+        var building = await _db.Buildings.AsNoTracking().Include(b => b.Apartments).FirstOrDefaultAsync(b => b.Id == id);
+        if (building is null)
+        {
+            return NotFoundError($"Building {id} was not found.");
+        }
+
+        return Ok(ToResponse(building));
     }
 
     /// <summary>Register a building. Administrator only.</summary>
@@ -112,7 +159,7 @@ public class BuildingsController : ApiControllerBase
         return NoContent();
     }
 
-    private static BuildingResponse ToResponse(Building building) => new()
+    internal static BuildingResponse ToResponse(Building building) => new()
     {
         Id = building.Id,
         Name = building.Name,
@@ -120,6 +167,11 @@ public class BuildingsController : ApiControllerBase
         City = building.City,
         Description = building.Description,
         YearBuilt = building.YearBuilt,
-        ApartmentCount = building.Apartments.Count
+        ApartmentCount = building.Apartments?.Count ?? 0,
+        Links = new ResourceLinks
+        {
+            Self = $"/api/buildings/{building.Id}",
+            Apartments = $"/api/buildings/{building.Id}/apartments"
+        }
     };
 }

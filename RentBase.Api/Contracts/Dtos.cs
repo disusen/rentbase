@@ -72,6 +72,7 @@ public class BuildingResponse
     public string Description { get; set; } = string.Empty;
     public int YearBuilt { get; set; }
     public int ApartmentCount { get; set; }
+    public ResourceLinks Links { get; set; } = new();
 }
 
 public class ApartmentRequest
@@ -109,6 +110,7 @@ public class ApartmentResponse
     public int Rooms { get; set; }
     public decimal MonthlyRent { get; set; }
     public bool IsAvailable { get; set; }
+    public ResourceLinks Links { get; set; } = new();
 }
 
 public class ReservationRequest
@@ -138,4 +140,34 @@ public class ReservationResponse
     public DateOnly EndDate { get; set; }
     public string Notes { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public ResourceLinks Links { get; set; } = new();
+}
+
+public class ResourceLinks
+{
+    public string? Self { get; set; }
+    public string? Apartments { get; set; }
+    public string? Building { get; set; }
+    public string? Reservations { get; set; }
+    public string? Profile { get; set; }
+    public string? Next { get; set; }
+    public string? Prev { get; set; }
+}
+
+public class PagedResponse<T>
+{
+    public List<T> Items { get; set; } = new();
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalCount { get; set; }
+    public int TotalPages { get; set; }
+    public ResourceLinks Links { get; set; } = new();
+}
+
+public class ProfileResponse
+{
+    public UserResponse User { get; set; } = new();
+    public int ReservationCount { get; set; }
+    public List<ReservationResponse> RecentReservations { get; set; } = new();
+    public ResourceLinks Links { get; set; } = new();
 }

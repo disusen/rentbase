@@ -19,11 +19,17 @@ public class ReservationsController : ApiControllerBase
         _db = db;
     }
 
-    /// <summary>Member sees their own history. Administrator sees every reservation and may filter by userId.</summary>
+    /// <summary>Member sees their own history. Administrator sees every reservation and may filter by userId. Supports pagination.</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(List<ReservationResponse>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<ReservationResponse>>> List([FromQuery] int? userId)
+    [ProducesResponseType(typeof(PagedResponse<ReservationResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<ReservationResponse>>> List(
+        [FromQuery] int? userId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
     {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
         var query = _db.Reservations.AsNoTracking()
             .Include(r => r.Apartment)!.ThenInclude(a => a!.Building)
             .Include(r => r.User)
@@ -38,8 +44,116 @@ public class ReservationsController : ApiControllerBase
             query = query.Where(r => r.UserId == userId);
         }
 
-        var reservations = await query.OrderByDescending(r => r.StartDate).ToListAsync();
-        return Ok(reservations.Select(ToResponse).ToList());
+        var total = await query.CountAsync();
+        var reservations = await query
+            .OrderByDescending(r => r.StartDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = reservations.Select(ToResponse).ToList();
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+        var qs = (IsAdmin && userId is not null) ? $"&userId={userId}" : "";
+
+        return Ok(new PagedResponse<ReservationResponse>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            TotalPages = totalPages,
+            Links = new ResourceLinks
+            {
+                Self = $"/api/reservations?page={page}&pageSize={pageSize}{qs}",
+                Next = page < totalPages ? $"/api/reservations?page={page + 1}&pageSize={pageSize}{qs}" : null,
+                Prev = page > 1 ? $"/api/reservations?page={page - 1}&pageSize={pageSize}{qs}" : null
+            }
+        });
+    }
+
+    /// <summary>
+    /// Hierarchical endpoint covering the full chain: building → apartment → reservations.
+    /// Demonstrates URL scoping.
+    /// </summary>
+    [HttpGet("/api/buildings/{buildingId:int}/apartments/{apartmentId:int}/reservations")]
+    [ProducesResponseType(typeof(PagedResponse<ReservationResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResponse<ReservationResponse>>> ListForApartment(
+        int buildingId,
+        int apartmentId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var apartment = await _db.Apartments.AsNoTracking()
+            .Include(a => a.Building)
+            .FirstOrDefaultAsync(a => a.Id == apartmentId && a.BuildingId == buildingId);
+        if (apartment is null)
+        {
+            return NotFoundError($"Apartment {apartmentId} was not found in building {buildingId}.");
+        }
+
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.Reservations.AsNoTracking()
+            .Include(r => r.Apartment)!.ThenInclude(a => a!.Building)
+            .Include(r => r.User)
+            .Where(r => r.ApartmentId == apartmentId);
+
+        if (!IsAdmin)
+        {
+            query = query.Where(r => r.UserId == CurrentUserId);
+        }
+
+        var total = await query.CountAsync();
+        var reservations = await query
+            .OrderByDescending(r => r.StartDate)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var items = reservations.Select(ToResponse).ToList();
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+
+        return Ok(new PagedResponse<ReservationResponse>
+        {
+            Items = items,
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            TotalPages = totalPages,
+            Links = new ResourceLinks
+            {
+                Self = $"/api/buildings/{buildingId}/apartments/{apartmentId}/reservations?page={page}&pageSize={pageSize}",
+                Building = $"/api/buildings/{buildingId}",
+                Apartments = $"/api/buildings/{buildingId}/apartments",
+                Next = page < totalPages ? $"/api/buildings/{buildingId}/apartments/{apartmentId}/reservations?page={page + 1}&pageSize={pageSize}" : null,
+                Prev = page > 1 ? $"/api/buildings/{buildingId}/apartments/{apartmentId}/reservations?page={page - 1}&pageSize={pageSize}" : null
+            }
+        });
+    }
+
+    /// <summary>Get a single reservation by id. Members can only read their own.</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ReservationResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ReservationResponse>> Get(int id)
+    {
+        var reservation = await _db.Reservations.AsNoTracking()
+            .Include(r => r.Apartment)!.ThenInclude(a => a!.Building)
+            .Include(r => r.User)
+            .FirstOrDefaultAsync(r => r.Id == id);
+        if (reservation is null)
+        {
+            return NotFoundError($"Reservation {id} was not found.");
+        }
+
+        if (!IsAdmin && reservation.UserId != CurrentUserId)
+        {
+            return Forbidden("You can view only your own reservations.");
+        }
+
+        return Ok(ToResponse(reservation));
     }
 
     /// <summary>Create a reservation for an available apartment and a valid date range.</summary>
@@ -72,13 +186,20 @@ public class ReservationsController : ApiControllerBase
             ApartmentId = apartment.Id,
             Apartment = apartment,
             UserId = CurrentUserId,
-            User = await _db.Users.FirstAsync(u => u.Id == CurrentUserId),
-            StartDate = request.StartDate.Value,
-            EndDate = request.EndDate.Value,
-            Notes = request.Notes.Trim()
+            StartDate = request.StartDate!.Value,
+            EndDate = request.EndDate!.Value,
+            Notes = request.Notes?.Trim() ?? string.Empty,
+            CreatedAt = DateTime.UtcNow
         };
         _db.Reservations.Add(reservation);
         await _db.SaveChangesAsync();
+
+        // reload with includes for response
+        reservation = await _db.Reservations
+            .Include(r => r.Apartment)!.ThenInclude(a => a!.Building)
+            .Include(r => r.User)
+            .FirstAsync(r => r.Id == reservation.Id);
+
         return Created($"/api/reservations/{reservation.Id}", ToResponse(reservation));
     }
 
@@ -123,9 +244,9 @@ public class ReservationsController : ApiControllerBase
 
         reservation.ApartmentId = apartment.Id;
         reservation.Apartment = apartment;
-        reservation.StartDate = request.StartDate.Value;
-        reservation.EndDate = request.EndDate.Value;
-        reservation.Notes = request.Notes.Trim();
+        reservation.StartDate = request.StartDate!.Value;
+        reservation.EndDate = request.EndDate!.Value;
+        reservation.Notes = request.Notes?.Trim() ?? string.Empty;
         await _db.SaveChangesAsync();
         return Ok(ToResponse(reservation));
     }
@@ -188,6 +309,14 @@ public class ReservationsController : ApiControllerBase
         StartDate = reservation.StartDate,
         EndDate = reservation.EndDate,
         Notes = reservation.Notes,
-        CreatedAt = reservation.CreatedAt
+        CreatedAt = reservation.CreatedAt,
+        Links = new ResourceLinks
+        {
+            Self = $"/api/reservations/{reservation.Id}",
+            Building = reservation.Apartment?.BuildingId is int bid ? $"/api/buildings/{bid}" : null,
+            Apartments = reservation.Apartment is not null
+                ? $"/api/buildings/{reservation.Apartment.BuildingId}/apartments"
+                : null
+        }
     };
 }
