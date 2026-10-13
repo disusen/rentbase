@@ -1,17 +1,38 @@
 {
   "info": {
     "name": "RentBase API",
-    "description": "Lab 1 demo collection. Run the Lab demo folder with the Collection Runner (it captures tokens and ids). Then run Edge cases.",
+    "description": "Lab 1 demo collection. Run the Lab demo folder with the Collection Runner (it captures tokens and ids). Edge cases folder now logs in first, so it can be run on its own.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080" },
-    { "key": "adminToken", "value": "" },
-    { "key": "memberToken", "value": "" },
-    { "key": "buildingId", "value": "1" },
-    { "key": "apartmentId", "value": "1" },
-    { "key": "reservationId", "value": "" },
-    { "key": "userId", "value": "" }
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "memberToken",
+      "value": ""
+    },
+    {
+      "key": "buildingId",
+      "value": "1"
+    },
+    {
+      "key": "apartmentId",
+      "value": "1"
+    },
+    {
+      "key": "reservationId",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    }
   ],
   "item": [
     {
@@ -21,223 +42,479 @@
           "name": "01 Login admin",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/auth/login",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@rentbase.lt\",\n  \"password\": \"Admin123!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@rentbase.lt\",\n  \"password\": \"Admin123!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.collectionVariables.set('adminToken', body.token);"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', body.token);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "02 Login member",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "url": "{{baseUrl}}/api/auth/login",
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"ieva@rentbase.lt\",\n  \"password\": \"Member123!\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ieva@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.collectionVariables.set('memberToken', body.token);",
-            "pm.collectionVariables.set('userId', body.user.id);"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('memberToken', body.token);",
+                  "pm.collectionVariables.set('userId', body.user.id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "03 List buildings (paged + filter)",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/buildings?city=Vilnius&page=1&pageSize=5" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.test('paged items', () => pm.expect(body.items).to.be.an('array'));",
-            "pm.test('has links', () => pm.expect(body.links).to.have.property('self'));",
-            "if (body.items.length > 0) pm.collectionVariables.set('buildingId', body.items[0].id);"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/buildings?city=Vilnius&page=1&pageSize=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('paged items', () => pm.expect(body.items).to.be.an('array'));",
+                  "pm.test('has links', () => pm.expect(body.links).to.have.property('self'));",
+                  "if (body.items.length > 0) pm.collectionVariables.set('buildingId', body.items[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "04 Get single building",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/buildings/{{buildingId}}" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "pm.test('has self link', () => pm.expect(pm.response.json().links.self).to.be.a('string'));"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/buildings/{{buildingId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('has self link', () => pm.expect(pm.response.json().links.self).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "05 List apartments for building (hierarchical)",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/buildings/{{buildingId}}/apartments?page=1&pageSize=10" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.test('paged', () => pm.expect(body.items).to.be.an('array'));",
-            "if (body.items.length > 0) pm.collectionVariables.set('apartmentId', body.items[0].id);"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/buildings/{{buildingId}}/apartments?page=1&pageSize=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('paged', () => pm.expect(body.items).to.be.an('array'));",
+                  "if (body.items.length > 0) pm.collectionVariables.set('apartmentId', body.items[0].id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "06 Get single apartment",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/apartments/{{apartmentId}}" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "pm.test('has reservations link', () => pm.expect(pm.response.json().links.reservations).to.be.a('string'));"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/apartments/{{apartmentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('has reservations link', () => pm.expect(pm.response.json().links.reservations).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "07 Full hierarchy reservations",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/buildings/{{buildingId}}/apartments/{{apartmentId}}/reservations"
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "pm.test('paged response', () => pm.expect(pm.response.json().items).to.be.an('array'));"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('paged response', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "08 Member profile (multi-entity)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/me/profile"
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "const body = pm.response.json();",
-            "pm.test('has user', () => pm.expect(body.user).to.have.property('id'));",
-            "pm.test('has reservations', () => pm.expect(body.recentReservations).to.be.an('array'));"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('has user', () => pm.expect(body.user).to.have.property('id'));",
+                  "pm.test('has reservations', () => pm.expect(body.recentReservations).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "09 Create building (admin)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/buildings",
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo namas\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Sukurta gynimo demonstracijai.\",\n  \"yearBuilt\": 2019\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo namas\",\n  \"address\": \"Student\u0173 g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Sukurta gynimo demonstracijai.\",\n  \"yearBuilt\": 2019\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('buildingId', pm.response.json().id);"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('buildingId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "10 Update building",
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/buildings/{{buildingId}}",
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Demo namas (atnaujintas)\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Atnaujintas aprašymas.\",\n  \"yearBuilt\": 2020\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Demo namas (atnaujintas)\",\n  \"address\": \"Student\u0173 g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Atnaujintas apra\u0161ymas.\",\n  \"yearBuilt\": 2020\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "11 Create apartment",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/apartments",
-            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": {{buildingId}},\n  \"number\": \"99\",\n  \"floor\": 2,\n  \"areaSqm\": 48.5,\n  \"rooms\": 2,\n  \"monthlyRent\": 550,\n  \"isAvailable\": true\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"buildingId\": {{buildingId}},\n  \"number\": \"99\",\n  \"floor\": 2,\n  \"areaSqm\": 48.5,\n  \"rooms\": 2,\n  \"monthlyRent\": 550,\n  \"isAvailable\": true\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('apartmentId', pm.response.json().id);"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('apartmentId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "12 List apartments filtered",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/apartments?buildingId={{buildingId}}&available=true&page=1&pageSize=5" },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "pm.test('has items', () => pm.expect(pm.response.json().items).to.be.an('array'));"
-          ] } }]
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/apartments?buildingId={{buildingId}}&available=true&page=1&pageSize=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('has items', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "13 Create reservation (member)",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/reservations",
-            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2027-12-31\",\n  \"notes\": \"Demonstracinė rezervacija\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2027-12-31\",\n  \"notes\": \"Demonstracin\u0117 rezervacija\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('201', () => pm.response.to.have.status(201));",
-            "pm.collectionVariables.set('reservationId', pm.response.json().id);"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reservationId', pm.response.json().id);"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "14 List reservations (paged)",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/reservations?page=1&pageSize=5"
           },
-          "event": [{ "listen": "test", "script": { "exec": [
-            "pm.test('200', () => pm.response.to.have.status(200));",
-            "pm.test('paged', () => pm.expect(pm.response.json().items).to.be.an('array'));"
-          ] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('paged', () => pm.expect(pm.response.json().items).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "15 Get single reservation",
           "request": {
             "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/reservations/{{reservationId}}"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "16 Update reservation",
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/reservations/{{reservationId}}",
-            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2028-01-31\",\n  \"notes\": \"Atnaujintos datos\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2028-01-31\",\n  \"notes\": \"Atnaujintos datos\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('200', () => pm.response.to.have.status(200));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "17 Delete reservation",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{memberToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/reservations/{{reservationId}}"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "18 Delete demo apartment",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/apartments/{{apartmentId}}"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "19 Delete demo building",
           "request": {
             "method": "DELETE",
-            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
             "url": "{{baseUrl}}/api/buildings/{{buildingId}}"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('204', () => pm.response.to.have.status(204));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -245,51 +522,172 @@
       "name": "Edge cases",
       "item": [
         {
+          "name": "00 Login admin (for edge cases)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@rentbase.lt\",\n  \"password\": \"Admin123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('adminToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "00 Login member (for edge cases)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ieva@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('memberToken', body.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "404 missing building",
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/api/buildings/99999"
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('404', () => pm.response.to.have.status(404));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "400 bad building payload",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/buildings",
-            "body": { "mode": "raw", "raw": "{}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('400', () => pm.response.to.have.status(400));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "422 end date before start",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/reservations",
-            "body": { "mode": "raw", "raw": "{\n  \"apartmentId\": 2,\n  \"startDate\": \"2027-05-10\",\n  \"endDate\": \"2027-05-01\",\n  \"notes\": \"Blogos datos\"\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apartmentId\": 2,\n  \"startDate\": \"2027-05-10\",\n  \"endDate\": \"2027-05-01\",\n  \"notes\": \"Blogos datos\"\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('422', () => pm.response.to.have.status(422));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('422', () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "403 member cannot create building",
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "Authorization", "value": "Bearer {{memberToken}}" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{memberToken}}"
+              }
             ],
             "url": "{{baseUrl}}/api/buildings",
-            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hack\",\n  \"address\": \"x\",\n  \"city\": \"Kaunas\",\n  \"description\": \"no\",\n  \"yearBuilt\": 2000\n}" }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Hack\",\n  \"address\": \"x\",\n  \"city\": \"Kaunas\",\n  \"description\": \"no\",\n  \"yearBuilt\": 2000\n}"
+            }
           },
-          "event": [{ "listen": "test", "script": { "exec": ["pm.test('403', () => pm.response.to.have.status(403));"] } }]
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

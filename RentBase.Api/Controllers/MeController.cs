@@ -60,7 +60,11 @@ public class MeController : ApiControllerBase
                 CreatedAt = r.CreatedAt,
                 Links = new ResourceLinks
                 {
-                    Self = $"/api/reservations/{r.Id}"
+                    Self = $"/api/reservations/{r.Id}",
+                    Building = r.Apartment?.BuildingId is int bid ? $"/api/buildings/{bid}" : null,
+                    Apartments = r.Apartment is not null
+                    ? $"/api/buildings/{r.Apartment.BuildingId}/apartments"
+                    : null
                 }
             }).ToList(),
             Links = new ResourceLinks
