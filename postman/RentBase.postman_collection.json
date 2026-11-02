@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "RentBase API",
-    "description": "Lab 1 demo collection. Run the Lab demo folder with the Collection Runner (it captures tokens and ids). Edge cases folder now logs in first, so it can be run on its own.",
+    "description": "Labs 1 and 2. Run each folder with the Collection Runner. 'Lab demo' covers CRUD and hierarchy, 'Edge cases' covers 404/400/422/403, 'Auth (lab 2)' covers refresh tokens, logout and role/ownership checks. Each folder logs in first, so it can be run on its own. The refresh token is an HttpOnly cookie that Postman keeps in its cookie jar.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -32,6 +32,22 @@
     {
       "key": "userId",
       "value": ""
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "oldAccessToken",
+      "value": ""
+    },
+    {
+      "key": "otherReservationId",
+      "value": ""
+    },
+    {
+      "key": "otherUserId",
+      "value": ""
     }
   ],
   "item": [
@@ -61,7 +77,7 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.collectionVariables.set('adminToken', body.token);"
+                  "pm.collectionVariables.set('adminToken', body.accessToken);"
                 ]
               }
             }
@@ -90,7 +106,7 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.collectionVariables.set('memberToken', body.token);",
+                  "pm.collectionVariables.set('memberToken', body.accessToken);",
                   "pm.collectionVariables.set('userId', body.user.id);"
                 ]
               }
@@ -241,7 +257,7 @@
             "url": "{{baseUrl}}/api/buildings",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Demo namas\",\n  \"address\": \"Student\u0173 g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Sukurta gynimo demonstracijai.\",\n  \"yearBuilt\": 2019\n}"
+              "raw": "{\n  \"name\": \"Demo namas\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Sukurta gynimo demonstracijai.\",\n  \"yearBuilt\": 2019\n}"
             }
           },
           "event": [
@@ -273,7 +289,7 @@
             "url": "{{baseUrl}}/api/buildings/{{buildingId}}",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Demo namas (atnaujintas)\",\n  \"address\": \"Student\u0173 g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Atnaujintas apra\u0161ymas.\",\n  \"yearBuilt\": 2020\n}"
+              "raw": "{\n  \"name\": \"Demo namas (atnaujintas)\",\n  \"address\": \"Studentų g. 50\",\n  \"city\": \"Kaunas\",\n  \"description\": \"Atnaujintas aprašymas.\",\n  \"yearBuilt\": 2020\n}"
             }
           },
           "event": [
@@ -354,7 +370,7 @@
             "url": "{{baseUrl}}/api/reservations",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2027-12-31\",\n  \"notes\": \"Demonstracin\u0117 rezervacija\"\n}"
+              "raw": "{\n  \"apartmentId\": {{apartmentId}},\n  \"startDate\": \"2027-09-01\",\n  \"endDate\": \"2027-12-31\",\n  \"notes\": \"Demonstracinė rezervacija\"\n}"
             }
           },
           "event": [
@@ -544,7 +560,7 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.collectionVariables.set('adminToken', body.token);"
+                  "pm.collectionVariables.set('adminToken', body.accessToken);"
                 ]
               }
             }
@@ -573,7 +589,7 @@
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "pm.collectionVariables.set('memberToken', body.token);"
+                  "pm.collectionVariables.set('memberToken', body.accessToken);"
                 ]
               }
             }
@@ -685,6 +701,518 @@
                 "exec": [
                   "pm.test('403', () => pm.response.to.have.status(403));"
                 ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth (lab 2)",
+      "item": [
+        {
+          "name": "01 Login member (access token + refresh cookie)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ieva@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('access token in body', () => pm.expect(body.accessToken).to.be.a('string'));",
+                  "pm.test('refresh token is NOT in body', () => pm.expect(body).to.not.have.property('refreshToken'));",
+                  "const setCookie = pm.response.headers.filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).join(';');",
+                  "pm.test('refresh cookie is HttpOnly', () => { pm.expect(setCookie).to.include('rb_refresh='); pm.expect(setCookie.toLowerCase()).to.include('httponly'); });",
+                  "const claims = JSON.parse(decodeURIComponent(escape(atob(body.accessToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))));",
+                  "console.log('access token claims', claims);",
+                  "pm.test('token holds user id, role and session id', () => { pm.expect(claims.sub).to.eql(String(body.user.id)); pm.expect(claims.role || claims['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']).to.eql('Member'); pm.expect(claims.sid).to.be.a('string'); });",
+                  "pm.test('access token lives about 15 minutes', () => pm.expect(claims.exp - (claims.iat || claims.nbf)).to.be.at.most(15 * 60));",
+                  "pm.collectionVariables.set('authToken', body.accessToken);",
+                  "pm.collectionVariables.set('oldAccessToken', body.accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 Profile with access token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 Refresh (rotates refresh token)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/refresh"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('new access token', () => pm.expect(body.accessToken).to.not.eql(pm.collectionVariables.get('oldAccessToken')));",
+                  "pm.test('new refresh cookie set', () => pm.expect(pm.response.headers.filter(h => h.key.toLowerCase() === 'set-cookie').map(h => h.value).join(';')).to.include('rb_refresh='));",
+                  "pm.collectionVariables.set('authToken', body.accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 Profile with refreshed token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 Logout (revokes session)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 401 access token after logout",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401 even though the token has not expired', () => pm.response.to.have.status(401));",
+                  "pm.test('json error body', () => pm.expect(pm.response.json().status).to.eql(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 401 refresh after logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/refresh"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 Logout again is still 204",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/logout"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 401 no token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 401 forged token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiQWRtaW4ifQ.c2lnbmF0dXJlLW1hZGUtdXA"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 Guest can still browse buildings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/buildings"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 without a token', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 Register ignores role in body",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Bandantis Adminas\",\n  \"email\": \"escalate{{$timestamp}}@rentbase.lt\",\n  \"password\": \"Member123!\",\n  \"role\": \"Admin\",\n  \"isApproved\": true\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.test('role stays Member, not approved', () => { const b = pm.response.json(); pm.expect(b.role).to.eql('Member'); pm.expect(b.isApproved).to.eql(false); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 403 unapproved user cannot log in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tomas@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 Login Ieva and pick her reservation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ieva@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('otherUserId', body.user.id);",
+                  "pm.sendRequest({ url: pm.collectionVariables.get('baseUrl') + '/api/reservations?page=1&pageSize=1', header: { Authorization: 'Bearer ' + body.accessToken } }, (err, res) => {",
+                  "  pm.test('Ieva has a reservation', () => pm.expect(res.json().items.length).to.be.above(0));",
+                  "  pm.collectionVariables.set('otherReservationId', res.json().items[0].id);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 Login Jonas (another member)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"jonas@rentbase.lt\",\n  \"password\": \"Member123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('authToken', pm.response.json().accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 403 member cannot read another member's reservation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reservations/{{otherReservationId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 403 member cannot delete another member's reservation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/reservations/{{otherReservationId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 403 member cannot approve users (admin only)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/users/{{otherUserId}}/approval",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"isApproved\": false\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 Logout all devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/auth/logout-all"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 401 after logout all",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/me/profile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ],
+                "type": "text/javascript"
               }
             }
           ]
