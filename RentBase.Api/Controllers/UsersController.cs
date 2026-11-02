@@ -43,11 +43,23 @@ public class UsersController : ApiControllerBase
         }
 
         user.IsApproved = request.IsApproved.Value;
+        if (!user.IsApproved)
+        {
+            // A rejected member is logged out everywhere right away.
+            var now = DateTime.UtcNow;
+            var sessions = await _db.Sessions.Where(s => s.UserId == id && s.RevokedAt == null).ToListAsync();
+            foreach (var session in sessions)
+            {
+                session.RevokedAt = now;
+                session.RevokedReason = "approval withdrawn";
+            }
+        }
+
         await _db.SaveChangesAsync();
         return Ok(AuthController.ToResponse(user));
     }
 
-    /// <summary>Delete a member. Reservations belonging to that member are removed first.</summary>
+    /// <summary>Delete a member. Reservations belonging to that member are removed first; sessions are removed by cascade.</summary>
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]

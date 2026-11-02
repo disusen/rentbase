@@ -1,17 +1,17 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using RentBase.Api.Auth;
 using RentBase.Api.Contracts;
+using RentBase.Api.Models;
 
 namespace RentBase.Api.Controllers;
 
 public abstract class ApiControllerBase : ControllerBase
 {
+    /// <summary>User id read from the validated JWT, never from the request body or URL.</summary>
     protected int CurrentUserId =>
-        int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? User.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? throw new InvalidOperationException("Missing user id claim."));
+        AuthClaims.GetUserId(User) ?? throw new InvalidOperationException("Missing user id claim.");
 
-    protected bool IsAdmin => User.IsInRole("Admin");
+    protected bool IsAdmin => User.IsInRole(UserRoles.Admin);
 
     protected ActionResult BadPayload(string detail) =>
         BadRequest(new ApiError("Invalid payload", StatusCodes.Status400BadRequest, detail));

@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Building> Buildings => Set<Building>();
     public DbSet<Apartment> Apartments => Set<Apartment>();
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<UserSession> Sessions => Set<UserSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +55,21 @@ public class AppDbContext : DbContext
                 .WithMany(u => u.Reservations)
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.ToTable("UserSessions");
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.RefreshTokenHash).HasMaxLength(64);
+            entity.Property(s => s.PreviousRefreshTokenHash).HasMaxLength(64);
+            entity.Property(s => s.RevokedReason).HasMaxLength(80);
+            entity.HasIndex(s => s.RefreshTokenHash).IsUnique();
+            entity.HasIndex(s => s.PreviousRefreshTokenHash);
+            entity.HasOne(s => s.User)
+                .WithMany(u => u.Sessions)
+                .HasForeignKey(s => s.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

@@ -25,8 +25,13 @@ public class LoginRequest
 
 public class AuthResponse
 {
-    public string Token { get; set; } = string.Empty;
-    public DateTime ExpiresAt { get; set; }
+    /// <summary>Short-lived JWT. Send it as "Authorization: Bearer ..." on every request.</summary>
+    public string AccessToken { get; set; } = string.Empty;
+    public string TokenType { get; set; } = "Bearer";
+    public DateTime AccessTokenExpiresAt { get; set; }
+
+    /// <summary>The refresh token itself is not in the body. It is set as an HttpOnly cookie.</summary>
+    public DateTime RefreshTokenExpiresAt { get; set; }
     public UserResponse User { get; set; } = new();
 }
 
