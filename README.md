@@ -1,6 +1,6 @@
 # RentBase API
 
-Lab 1 backend for the RentBase project: buildings, apartments, member registrations and reservations.
+Backend for the RentBase project (labs 1 and 2): buildings, apartments, member registrations and reservations, with JWT authentication, refresh tokens and role-based authorization.
 
 Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, PostgreSQL. The React client is not part of this lab.
 
@@ -26,8 +26,35 @@ Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, Po
 | 14 | DELETE | `/api/reservations/{id}` | owner or admin | 204 |
 | 15 | PATCH | `/api/users/{id}/approval` | admin | 200 |
 | 16 | DELETE | `/api/users/{id}` | admin | 204 |
+| 17 | POST | `/api/auth/refresh` | refresh cookie | 200 |
+| 18 | POST | `/api/auth/logout` | any | 204 |
+| 19 | POST | `/api/auth/logout-all` | member or admin | 204 |
 
-Logout is client-side: discard the JWT. There is no server session to invalidate.
+## Authentication and authorization (lab 2)
+
+### Roles
+
+| Role | How | Can do |
+|------|-----|--------|
+| Guest | no token | browse buildings and apartments, register, log in |
+| Member | `Member` in the token, approved by admin | own reservations and profile |
+| Admin | `Admin` in the token | buildings, apartments, user approval and deletion, every reservation |
+
+Role checks are `[Authorize(Roles = UserRoles.Admin)]` on the controllers. Ownership checks compare the reservation's `UserId` with the id from the token (`ReservationsController`), so a member gets `403` when reading, editing or cancelling someone else's reservation. Registration always creates an unapproved `Member`; a `role` field in the body is ignored.
+
+### Tokens
+
+- **Access token**: JWT, HMAC-SHA256, valid 15 minutes. Claims: `sub` (user id), role, `sid` (session id), `email`, `name`, `jti`, `exp`. Created in `Auth/JwtTokenService.cs`; signing key is `Jwt:Key` in `appsettings.json` (override with the `Jwt__Key` environment variable when deployed). Sent as `Authorization: Bearer <token>`.
+- **Refresh token**: 64 random bytes, valid 7 days, stored only as a SHA-256 hash in the `UserSessions` table. Sent as the cookie `rb_refresh` with `HttpOnly`, `Secure` (off for local http), `SameSite`, and `Path=/api/auth`, so JavaScript cannot read it and it is not sent with ordinary API calls.
+- **Rotation**: every `POST /api/auth/refresh` replaces the refresh token. If an old one is used again, the session is revoked (stolen-token detection).
+- **Logout**: `POST /api/auth/logout` marks the session revoked. Every request's token is checked against its session in `Program.cs` (`OnTokenValidated`), so the access token stops working at once, not after 15 minutes. `logout-all` revokes every session of the user. Rejecting or deleting a user ends their sessions too.
+
+### Auth status codes
+
+- `401`: no token, forged or expired token, logged-out session, wrong password, bad refresh cookie. Body is JSON.
+- `403`: valid token but wrong role (member creating a building) or not the owner (member deleting another member's reservation); login of an unapproved account.
+
+The `Auth (lab 2)` Postman folder walks through all of this.
 
 Guest apartment browsing is `GET /api/apartments?available=true`. Apartments of one building are `GET /api/apartments?buildingId=1`.
 
@@ -74,6 +101,7 @@ Import both files from `postman/`. Run the folder **Lab demo** with the collecti
 ```bash
 newman run postman/RentBase.postman_collection.json -e postman/RentBase.postman_environment.json --folder "Lab demo"
 newman run postman/RentBase.postman_collection.json -e postman/RentBase.postman_environment.json --folder "Edge cases"
+newman run postman/RentBase.postman_collection.json -e postman/RentBase.postman_environment.json --folder "Auth (lab 2)"
 ```
 
 ## Kaip pademonstruoti (~15 s)
@@ -81,3 +109,6 @@ newman run postman/RentBase.postman_collection.json -e postman/RentBase.postman_
 1. `dotnet run --project RentBase.Api`, atidaryti http://localhost:8080/swagger. Docker nebūtinas.
 2. Postman Collection Runner ant aplanko **Lab demo**.
 3. Jei klausia apie klaidas: aplankas **Edge cases** (404, 400, 422, 201, 204).
+4. Antras laboratorinis: aplankas **Auth (lab 2)** (refresh, logout, 401, 403, rolės ir savininko tikrinimas).
+
+A database created before lab 2 has no `UserSessions` table. In Development the API notices this on startup and recreates and reseeds the database. With Docker you can also run `docker compose down -v`.

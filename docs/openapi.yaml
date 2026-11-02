@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: RentBase API
-  version: 1.0.0
+  version: 2.0.0
   description: |
     REST API for residential buildings, apartments and reservations.
     Swagger UI at /swagger is generated from the same controllers and stays in sync when the API is running.
@@ -40,7 +40,11 @@ paths:
   /api/auth/login:
     post:
       tags: [Auth]
-      summary: Log in and receive a JWT
+      summary: Log in and receive an access token and a refresh cookie
+      description: |
+        Returns a JWT access token (valid 15 minutes) in the body. A refresh token (valid 7 days)
+        is set as the HttpOnly cookie `rb_refresh` with path `/api/auth`; it never appears in the body.
+        The access token carries `sub` (user id), the role claim and `sid` (session id).
       operationId: login
       requestBody:
         required: true
@@ -51,10 +55,20 @@ paths:
       responses:
         '200':
           description: Token issued.
+          headers:
+            Set-Cookie:
+              description: "rb_refresh=<opaque token>; path=/api/auth; httponly; secure; samesite=none (secure is off in local development)"
+              schema: { type: string }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                tokenType: Bearer
+                accessTokenExpiresAt: '2026-11-02T10:15:00Z'
+                refreshTokenExpiresAt: '2026-11-09T10:00:00Z'
+                user: { id: 2, fullName: Ieva Kazlauskaitė, email: ieva@rentbase.lt, role: Member, isApproved: true }
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -69,6 +83,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Get a new access token using the refresh cookie
+      description: |
+        Reads the `rb_refresh` cookie. The refresh token is rotated: a new cookie replaces it and the
+        old one stops working. Sending an already used refresh token again revokes the whole session.
+      operationId: refresh
+      parameters:
+        - in: cookie
+          name: rb_refresh
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: New access token and a new refresh cookie.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Cookie missing, unknown, reused, expired or revoked. The cookie is cleared.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example: { title: Unauthorized, status: 401, detail: Session has ended. Log in again. }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out of the current session
+      description: |
+        Revokes the session named by the access token's `sid` claim, or by the refresh cookie when no
+        valid access token is sent. The refresh token and every access token of that session stop
+        working at once. Idempotent.
+      operationId: logout
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        '204':
+          description: Logged out. The refresh cookie is cleared.
+  /api/auth/logout-all:
+    post:
+      tags: [Auth]
+      summary: Log out of every session of the current user
+      operationId: logoutAll
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: All sessions revoked.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/buildings:
     get:
       tags: [Buildings]
@@ -375,7 +440,12 @@ components:
           schema:
             $ref: '#/components/schemas/ApiError'
     Unauthorized:
-      description: Missing or invalid token.
+      description: Missing, invalid, expired or logged-out access token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+          example: { title: Unauthorized, status: 401, detail: Access token has expired. Call POST /api/auth/refresh. }
     Forbidden:
       description: Authenticated, but not allowed.
       content:
@@ -422,8 +492,10 @@ components:
     AuthResponse:
       type: object
       properties:
-        token: { type: string }
-        expiresAt: { type: string, format: date-time }
+        accessToken: { type: string, description: JWT signed with HMAC-SHA256 }
+        tokenType: { type: string, example: Bearer }
+        accessTokenExpiresAt: { type: string, format: date-time }
+        refreshTokenExpiresAt: { type: string, format: date-time }
         user:
           $ref: '#/components/schemas/UserResponse'
     UserResponse:
