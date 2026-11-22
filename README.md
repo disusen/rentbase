@@ -2,6 +2,8 @@
 
 RentBase project for labs 1–3: buildings, apartments, member registrations and reservations, with JWT authentication, refresh tokens and role-based authorization.
 
+**Live:** web app https://rentbase-web-gvirak.onrender.com · API / Swagger https://rentbase-api-gvirak.onrender.com/swagger (free tier: the first request after 15 min idle takes up to a minute).
+
 Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, PostgreSQL. The React client (lab 3) is in `frontend/`; see "Lab 3" below.
 
 ## What is implemented
@@ -87,6 +89,24 @@ Open http://localhost:5173. Vite forwards `/api/*` and `/swagger/*` to `localhos
 
 Seed logins: `admin@rentbase.lt` / `Admin123!` (admin), `ieva@rentbase.lt` / `Member123!` (member). `tomas@rentbase.lt` is unapproved and is the one to approve on the **Naudotojai** page.
 
+### UI design (wireframes)
+
+Grey-box wireframes of the main screens are in [`docs/wireframes/`](docs/wireframes/): desktop at 1440 px, mobile at 375 px.
+
+| Home | Building list (admin) |
+|---|---|
+| ![Home](docs/wireframes/01_pradzia_desktop.png) | ![Building list](docs/wireframes/02_pastatai_sarasas.png) |
+| **Building with apartments** | **Create building (modal)** |
+| ![Building detail](docs/wireframes/03_pastato_puslapis_butai.png) | ![Create building modal](docs/wireframes/04_modalas_naujas_pastatas.png) |
+| **Reservations** | **New reservation (modal)** |
+| ![Reservations](docs/wireframes/05_rezervacijos.png) | ![Reservation modal](docs/wireframes/06_modalas_rezervacija.png) |
+| **Users (admin)** | **Registration** |
+| ![Users](docs/wireframes/07_naudotojai_admin.png) | ![Registration](docs/wireframes/08_registracija.png) |
+
+| Mobile: apartments | Mobile: hamburger menu |
+|---|---|
+| <img src="docs/wireframes/09_mobilus_butai.png" width="260"> | <img src="docs/wireframes/10_mobilus_meniu.png" width="260"> |
+
 ### Where each requirement lives
 
 | Requirement | Where |
@@ -168,5 +188,24 @@ newman run postman/RentBase.postman_collection.json -e postman/RentBase.postman_
 2. Postman Collection Runner ant aplanko **Lab demo**.
 3. Jei klausia apie klaidas: aplankas **Edge cases** (404, 400, 422, 201, 204).
 4. Antras laboratorinis: aplankas **Auth (lab 2)** (refresh, logout, 401, 403, rolės ir savininko tikrinimas).
+
+### Trečias laboratorinis: demonstracija (~5 min)
+
+Prieš gynimą: 2 min anksčiau atidaryti https://rentbase-web-gvirak.onrender.com (pažadinti API), VS Code su `frontend/src`, naršyklėje DevTools (F12).
+
+1. **Publikavimas (2 b.)**: parodyti veikiančią svetainę ir https://rentbase-api-gvirak.onrender.com/swagger, Render dashboard'e tris servisus (DB, API, static site), `render.yaml`.
+2. **Responsive + hamburgeris (1 b.)**: DevTools → device toolbar (Ctrl+Shift+M) arba sumažinti langą žemiau 768px: meniu virsta hamburgeriu, kortelės į vieną stulpelį, paveikslėliai mažėja. Kodas: `styles.css` pabaiga, `@media (max-width: 768px)`.
+3. **Svečias**: Pastatai → filtras pagal miestą, puslapiavimas, pastato puslapis (`/buildings/2`, hierarchinis `/api/buildings/2/apartments`). Paspausti „Rezervuoti“ → pranešimas „Prisijunkite“.
+4. **Registracija**: užregistruoti naują narį (input, email, password, checkbox, slaptažodžio stiprumo juosta), klaidos rodomos formoje, ne `alert`. Bandyti prisijungti → „Paskyra dar nepatvirtinta“ (403).
+5. **Administratorius** (`admin@rentbase.lt` / `Admin123!`): Naudotojai → patvirtinti naują narį.
+6. **CRUD pastatams**: Naujas pastatas (modalinis langas: text, select, number, textarea) → redaguoti → ištrinti (patvirtinimo modalas). Ištrinti pastatą su butais → 422 klaida pranešime.
+7. **CRUD butams**: pastato puslapyje „Pridėti butą“ (range slankiklis, switch, number) → redaguoti → ištrinti.
+8. **CRUD rezervacijoms** (prisijungus naujuoju nariu arba `ieva@rentbase.lt` / `Member123!`): rezervuoti butą (select, date, textarea, kainos skaičiavimas) → redaguoti datas → atšaukti. Persidengiančios datos → 422.
+9. **Žetonai**: DevTools → Application → Cookies: `rb_refresh` su HttpOnly, Secure. Network: perkrauti puslapį → `POST /api/auth/refresh` 200, naudotojas lieka prisijungęs. Access token tik atmintyje (`api.js`), atnaujinamas likus 1 min ir po 401. Atsijungti → refresh grąžina 401.
+10. **JSON**: Network skirtuke atsakymai `application/json`.
+11. **Animacijos (1 b.)**: užvesti pelę ant kortelių ir mygtukų, modalų atsiradimas, pranešimai. Network → „Slow 4G“ → perkrauti sąrašą: matosi „shimmer“ skeletai krovimo metu. Kodas: `styles.css` 7 skyrius (`@keyframes`).
+12. **Šriftai, ikonos, spalvos**: Fraunces + Manrope per Google Fonts (`index.html`, `--font-display`/`--font-body`), SVG ikonos `components/Icon.jsx`, paletė `:root` kintamuosiuose.
+
+Klausimai gynime ir kur atsakymas – lentelė „Where each requirement lives“ aukščiau.
 
 A database created before lab 2 has no `UserSessions` table. In Development the API notices this on startup and recreates and reseeds the database. With Docker you can also run `docker compose down -v`.
