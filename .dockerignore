@@ -1,0 +1,7 @@
+frontend/
+**/bin/
+**/obj/
+*.db
+.git/
+postman/
+docs/

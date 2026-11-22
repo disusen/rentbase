@@ -19,6 +19,53 @@ public class UsersController : ApiControllerBase
         _db = db;
     }
 
+    /// <summary>
+    /// List users for the admin panel. Filter by approval state (approved=false gives the
+    /// registrations waiting for approval) and page through the result.
+    /// </summary>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResponse<UserResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PagedResponse<UserResponse>>> List(
+        [FromQuery] bool? approved,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        var query = _db.Users.AsNoTracking().AsQueryable();
+        if (approved is not null)
+        {
+            query = query.Where(u => u.IsApproved == approved.Value);
+        }
+
+        var total = await query.CountAsync();
+        var users = await query
+            .OrderBy(u => u.IsApproved)
+            .ThenBy(u => u.FullName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling(total / (double)pageSize);
+        var qs = approved is null ? "" : $"&approved={approved.Value.ToString().ToLowerInvariant()}";
+
+        return Ok(new PagedResponse<UserResponse>
+        {
+            Items = users.Select(AuthController.ToResponse).ToList(),
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = total,
+            TotalPages = totalPages,
+            Links = new ResourceLinks
+            {
+                Self = $"/api/users?page={page}&pageSize={pageSize}{qs}",
+                Next = page < totalPages ? $"/api/users?page={page + 1}&pageSize={pageSize}{qs}" : null,
+                Prev = page > 1 ? $"/api/users?page={page - 1}&pageSize={pageSize}{qs}" : null
+            }
+        });
+    }
+
     /// <summary>Approve or reject a member registration.</summary>
     [HttpPatch("{id:int}/approval")]
     [ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]

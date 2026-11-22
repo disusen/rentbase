@@ -1,8 +1,8 @@
-# RentBase API
+# RentBase
 
-Backend for the RentBase project (labs 1 and 2): buildings, apartments, member registrations and reservations, with JWT authentication, refresh tokens and role-based authorization.
+RentBase project for labs 1–3: buildings, apartments, member registrations and reservations, with JWT authentication, refresh tokens and role-based authorization.
 
-Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, PostgreSQL. The React client is not part of this lab.
+Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, PostgreSQL. The React client (lab 3) is in `frontend/`; see "Lab 3" below.
 
 ## What is implemented
 
@@ -29,6 +29,7 @@ Stack, matching the L0 report: ASP.NET Core 8 Web API, Entity Framework Core, Po
 | 17 | POST | `/api/auth/refresh` | refresh cookie | 200 |
 | 18 | POST | `/api/auth/logout` | any | 204 |
 | 19 | POST | `/api/auth/logout-all` | member or admin | 204 |
+| 20 | GET | `/api/users` | admin | 200 |
 
 ## Authentication and authorization (lab 2)
 
@@ -67,6 +68,63 @@ Guest apartment browsing is `GET /api/apartments?available=true`. Apartments of 
 - Delete: `204` with no body.
 
 Responses are `application/json`, except validation failures, which use `application/problem+json`.
+
+## Lab 3: React client (`frontend/`)
+
+React 19 single-page app built with Vite. It talks to the API only through `fetch` and JSON. There are no extra UI libraries: the router, icons and modals are small, readable files that are easy to explain at the defense.
+
+### Run locally
+
+Start the API (`dotnet run --project RentBase.Api`, port 8080), then in a second terminal:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. Vite forwards `/api/*` and `/swagger/*` to `localhost:8080` (`vite.config.js`). The browser therefore sees a single origin, and the HttpOnly refresh cookie works without CORS.
+
+Seed logins: `admin@rentbase.lt` / `Admin123!` (admin), `ieva@rentbase.lt` / `Member123!` (member). `tomas@rentbase.lt` is unapproved and is the one to approve on the **Naudotojai** page.
+
+### Where each requirement lives
+
+| Requirement | Where |
+|---|---|
+| CRUD for buildings, apartments, reservations | `pages/Buildings.jsx`, `components/ApartmentGrid.jsx`, `pages/Reservations.jsx`; forms in `forms/` |
+| Register, login, token refresh, logout | `pages/Auth.jsx`, `auth.jsx`, `api.js` (`refreshSession`) |
+| Token storage | access token in memory (`api.js`), refresh token in the HttpOnly cookie set by the API |
+| Token refresh | on page load (keeps the session after a reload), on a timer 1 min before expiry, and after any 401 (request retried once). Only one refresh runs at a time, because the API detects reuse of a rotated token |
+| Input types (≥4) | text, email, password, number, range (rooms), date, select, textarea, checkbox/switch, radio (availability filter) |
+| Modals | `components/Modal.jsx`: create/edit forms and delete confirmation |
+| No `alert()`, user feedback | toasts in `toast.jsx`, inline form errors (`FormError`) |
+| Vector icons | `components/Icon.jsx`: inline SVG on a 24×24 grid, Lucide style. Used in the menu, buttons and cards |
+| Responsive images | `img { max-width: 100%; height: auto }` in `styles.css`; building illustrations in `public/images/*.svg` |
+| Custom fonts | Google Fonts `Fraunces` (headings) and `Manrope` (text), linked in `index.html`, used through `--font-display` / `--font-body` |
+| Animations | `styles.css` section 7: page fade-in, cards rising in, skeleton shimmer while data loads, modal pop-in, toast slide, hover lifts, hamburger → X |
+| Breakpoints | `@media (max-width: 768px)` (main: hamburger, one column) and `1024px` (two columns) at the end of `styles.css` |
+| Hamburger menu | `components/Header.jsx` (`.hamburger`, `.main-nav.is-open`) |
+| Header / content / footer look different | dark header with pill buttons and an underline bar, light content with rounded buttons, teal footer with growing-underline links |
+| Grid alignment | every spacing is a multiple of `--space: 8px`; layouts use CSS grid with one `gap` |
+| State | React Context for auth (`auth.jsx`), router (`router.jsx`) and toasts; `useState` inside pages |
+
+Additional endpoint for this lab: `GET /api/users?approved=false&page=1&pageSize=10` (admin). It lists the registrations waiting for approval.
+
+## Deploy to Render (free)
+
+`render.yaml` is a Render Blueprint. It describes a free PostgreSQL database, the API (Docker) and the React static site.
+
+1. Push the repository to GitHub.
+2. On https://dashboard.render.com: **New → Blueprint**, connect GitHub and select `disusen/rentbase`. Render reads `render.yaml` and shows the three resources. Click **Apply**. No card is needed for free resources.
+3. Wait for the API build (the first Docker build takes 5–10 min), then for the static site.
+4. Check that the API address on its page is `https://rentbase-api-gvirak.onrender.com`. If Render added a suffix, change the two `destination` URLs in `render.yaml`, push, and the static site redeploys.
+5. Open `https://rentbase-web-gvirak.onrender.com`.
+
+How it fits together: the static site rewrites `/api/*` to the API service. The browser only talks to `rentbase-web-…`, so the refresh cookie is first-party. That matters because `onrender.com` subdomains count as different sites, and cross-site cookies are blocked by many browsers. The API reads Render's `postgresql://` URL and `PORT` in `Program.cs`. `Jwt__Key` is generated by Render, so the development key in `appsettings.json` is not used in production.
+
+Free-tier notes:
+- The API sleeps after 15 minutes without traffic, and the first request then takes up to a minute. Open the site a couple of minutes before presenting.
+- The free database expires 30 days after creation. A new one is seeded automatically on first start.
 
 ## Seed data
 

@@ -10,6 +10,13 @@ using RentBase.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Render (and most PaaS hosts) tell the app which port to listen on through PORT.
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://+:{port}");
+}
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -49,6 +56,18 @@ builder.Services.AddSwaggerGen(options =>
 
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? "Data Source=rentbase.db";
+
+// Render gives the database as a URL (postgresql://user:pass@host:port/db).
+// Npgsql wants key=value pairs, so convert it.
+if (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase)
+    || connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+{
+    var uri = new Uri(connectionString);
+    var credentials = uri.UserInfo.Split(':', 2);
+    connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};" +
+        $"Username={Uri.UnescapeDataString(credentials[0])};Password={Uri.UnescapeDataString(credentials.ElementAtOrDefault(1) ?? "")};" +
+        "SSL Mode=Prefer";
+}
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     if (connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase))

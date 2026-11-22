@@ -1,0 +1,54 @@
+# Render Blueprint: Dashboard → New → Blueprint → pick this repository.
+# Creates three free resources:
+#   rentbase-db            PostgreSQL (the free database expires 30 days after creation)
+#   rentbase-api-gvirak    ASP.NET Core API, built from the Dockerfile
+#   rentbase-web-gvirak    React app (static site); /api/* is proxied to the API
+#
+# If Render adds a suffix to the API address (name already taken), change the two
+# "destination" URLs below to the address shown on the API's page and push again.
+
+databases:
+  - name: rentbase-db
+    plan: free
+    databaseName: rentbase
+    user: rentbase
+
+services:
+  - type: web
+    name: rentbase-api-gvirak
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/buildings
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: rentbase-db
+          property: connectionString
+      - key: Jwt__Key
+        generateValue: true
+      - key: Cors__Origins__0
+        value: https://rentbase-web-gvirak.onrender.com
+
+  - type: web
+    name: rentbase-web-gvirak
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      # Same-origin proxy: the browser talks only to the static site, so the
+      # HttpOnly refresh cookie is a first-party cookie and no CORS is needed.
+      - type: rewrite
+        source: /api/*
+        destination: https://rentbase-api-gvirak.onrender.com/api/*
+      - type: rewrite
+        source: /swagger/*
+        destination: https://rentbase-api-gvirak.onrender.com/swagger/*
+      # Single-page app: every other path is served by index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
